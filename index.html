@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Generador EAN-13 — Inventario JH</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0f1f3d;
+    --navy-mid: #1a3260;
+    --navy-light: #2a4a8a;
+    --accent: #1e6fff;
+    --accent-light: #e8f0ff;
+    --accent-mid: #b3ccff;
+    --success: #0d7a55;
+    --success-bg: #e6f5f0;
+    --warning: #b45309;
+    --warning-bg: #fef3c7;
+    --danger: #c0392b;
+    --border: #dde3ef;
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+    --text-primary: #0f1f3d;
+    --text-secondary: #4a5880;
+    --text-muted: #8a96b0;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+
+  body { font-family: var(--sans); background: var(--bg); color: var(--text-primary); min-height: 100vh; }
+
+  /* Header */
+  .app-header {
+    background: var(--navy); color: white;
+    padding: 0 40px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 3px solid var(--accent);
+  }
+  .header-brand { display: flex; align-items: center; gap: 14px; }
+  .header-icon { width: 36px; height: 36px; background: var(--accent); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; }
+  .header-icon svg { width: 20px; height: 20px; fill: white; }
+  .header-title { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
+  .header-sub { font-size: 12px; color: var(--accent-mid); font-weight: 300; letter-spacing: 0.5px; margin-top: 1px; }
+  .header-badge { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: var(--accent-mid); padding: 4px 10px; border-radius: 4px; letter-spacing: 0.5px; }
+
+  /* Layout */
+  .app-body { max-width: 1100px; margin: 0 auto; padding: 32px 40px 60px; }
+
+  /* Alert */
+  .alert { display: flex; align-items: flex-start; gap: 12px; padding: 14px 18px; border-radius: var(--radius-lg); margin-bottom: 20px; font-size: 13px; line-height: 1.6; border-left: 4px solid; }
+  .alert-success { background: var(--success-bg); border-color: var(--success); color: var(--success); }
+  .alert-warning { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); display: none; }
+  .alert-info { background: var(--accent-light); border-color: var(--accent); color: var(--navy-mid); display: none; }
+  .alert svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert-body strong { font-weight: 600; }
+
+  /* Panel */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 24px; overflow: hidden; }
+  .panel-header { background: var(--navy); padding: 12px 20px; display: flex; align-items: center; gap: 10px; }
+  .panel-header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .panel-header span { font-size: 12px; font-weight: 600; color: white; text-transform: uppercase; letter-spacing: 1px; }
+  .panel-body { padding: 24px; }
+
+  /* Department selector */
+  .dept-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dept-select-wrap { position: relative; flex: 1; min-width: 220px; }
+  .dept-select-wrap select {
+    width: 100%; height: 42px; padding: 0 36px 0 14px;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    font-family: var(--sans); font-size: 14px; font-weight: 500;
+    color: var(--text-primary); background: white; cursor: pointer;
+    appearance: none; outline: none; transition: border-color 0.15s;
+  }
+  .dept-select-wrap select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(30,111,255,0.1); }
+  .dept-select-wrap::after { content: '▾'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; font-size: 13px; }
+
+  .dept-badge {
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    background: var(--navy); color: var(--accent-mid);
+    padding: 6px 14px; border-radius: var(--radius);
+    border: 1px solid var(--navy-light);
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .dept-badge span { color: white; font-size: 14px; }
+
+  .dept-info-row { display: flex; gap: 20px; margin-top: 14px; flex-wrap: wrap; }
+  .dept-stat { font-size: 12px; color: var(--text-secondary); }
+  .dept-stat strong { color: var(--text-primary); font-family: var(--mono); }
+
+  /* Btn new dept */
+  .btn-new-dept {
+    height: 42px; padding: 0 18px;
+    background: white; border: 1.5px solid var(--accent);
+    border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 600;
+    color: var(--accent); cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-new-dept:hover { background: var(--accent-light); }
+  .btn-new-dept svg { width: 15px; height: 15px; }
+
+  /* Form grid */
+  .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 16px; align-items: end; margin-top: 20px; }
+  @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr 1fr; } }
+
+  .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .form-group input {
+    width: 100%; height: 40px; padding: 0 12px;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    font-family: var(--mono); font-size: 14px; color: var(--text-primary);
+    background: white; transition: border-color 0.15s; outline: none;
+  }
+  .form-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(30,111,255,0.1); }
+  .form-group input:read-only { background: var(--bg); color: var(--text-secondary); cursor: not-allowed; }
+  .form-group input.error { border-color: var(--danger); }
+
+  .btn-generate {
+    height: 40px; padding: 0 24px; background: var(--accent); color: white;
+    border: none; border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 8px; letter-spacing: 0.3px;
+    transition: background 0.15s, transform 0.1s; white-space: nowrap;
+  }
+  .btn-generate:hover { background: #1557d4; }
+  .btn-generate:active { transform: scale(0.98); }
+  .btn-generate:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+  .btn-generate svg { width: 16px; height: 16px; }
+
+  .error-hint { font-size: 12px; color: var(--danger); margin-top: 5px; min-height: 16px; }
+
+  /* Stats */
+  .stats-grid { display: none; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .stat-card.blue::before { background: var(--accent); }
+  .stat-card.green::before { background: var(--success); }
+  .stat-card.gray::before { background: var(--text-muted); }
+  .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; }
+  .stat-value { font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--text-primary); }
+
+  /* Actions */
+  .actions-bar { display: none; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .btn-action {
+    height: 34px; padding: 0 16px; background: white; border: 1.5px solid var(--border);
+    border-radius: var(--radius); font-family: var(--sans); font-size: 12px; font-weight: 500;
+    color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 7px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .btn-action:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .btn-action svg { width: 14px; height: 14px; }
+  .btn-action.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .btn-action.btn-save { border-color: var(--success); color: var(--success); }
+  .btn-action.btn-save:hover { background: var(--success-bg); }
+
+  /* Table */
+  .table-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+  .table-panel.hidden { display: none; }
+  .table-scroll { max-height: 520px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  thead th { position: sticky; top: 0; z-index: 2; background: var(--navy); color: white; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; padding: 11px 14px; text-align: left; border-right: 1px solid rgba(255,255,255,0.08); }
+  thead th:last-child { border-right: none; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--accent-light); }
+  tbody tr.used { opacity: 0.35; }
+  td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+  .td-num { font-family: var(--mono); color: var(--text-muted); font-size: 12px; }
+  .td-code { font-family: var(--mono); font-size: 13px; color: var(--text-primary); letter-spacing: 0.5px; }
+  .td-code .chk { color: var(--danger); font-weight: 600; }
+  .td-check { font-family: var(--mono); font-size: 15px; color: var(--danger); font-weight: 600; text-align: center; }
+  .td-desc input { width: 100%; border: none; border-bottom: 1.5px solid var(--border); background: transparent; font-family: var(--sans); font-size: 13px; color: var(--text-primary); outline: none; padding: 2px 4px; transition: border-color 0.15s; }
+  .td-desc input:focus { border-bottom-color: var(--accent); }
+  .td-desc input::placeholder { color: var(--text-muted); }
+  .used-badge { font-size: 10px; font-weight: 600; background: var(--warning-bg); color: var(--warning); border: 1px solid #f6d860; padding: 1px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
+  .td-bc { padding: 4px 14px; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-state p { font-size: 14px; }
+
+  /* Footer */
+  .app-footer { background: var(--navy); color: var(--text-muted); text-align: center; font-size: 11px; padding: 14px; letter-spacing: 0.5px; margin-top: 40px; }
+  .table-scroll::-webkit-scrollbar { width: 6px; }
+  .table-scroll::-webkit-scrollbar-track { background: var(--bg); }
+  .table-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── MODAL ─────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,31,61,0.6);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: white; border-radius: var(--radius-lg); padding: 32px;
+    width: 100%; max-width: 460px; margin: 16px;
+    box-shadow: 0 24px 60px rgba(15,31,61,0.25);
+    transform: translateY(12px); transition: transform 0.2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal h2 { font-size: 17px; font-weight: 600; color: var(--navy); margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .modal h2 svg { width: 20px; height: 20px; color: var(--accent); }
+  .modal-field { margin-bottom: 16px; }
+  .modal-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .modal-field input {
+    width: 100%; height: 40px; padding: 0 12px;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    font-family: var(--mono); font-size: 14px; color: var(--text-primary);
+    outline: none; transition: border-color 0.15s;
+  }
+  .modal-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(30,111,255,0.1); }
+  .modal-field input.error { border-color: var(--danger); }
+  .modal-hint { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+  .modal-hint.err { color: var(--danger); }
+  .modal-preview {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 20px;
+    font-size: 12px; color: var(--text-secondary); line-height: 1.8;
+  }
+  .modal-preview strong { font-family: var(--mono); color: var(--navy); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-cancel { height: 38px; padding: 0 20px; background: white; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+  .btn-cancel:hover { border-color: var(--text-muted); }
+  .btn-confirm { height: 38px; padding: 0 22px; background: var(--accent); border: none; border-radius: var(--radius); font-family: var(--sans); font-size: 13px; font-weight: 600; color: white; cursor: pointer; }
+  .btn-confirm:hover { background: #1557d4; }
+  .btn-confirm:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+  /* Loading spinner */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Firebase status dot */
+  .fb-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .fb-dot.connected { background: var(--success); }
+  .fb-dot.error { background: var(--danger); }
+
+  /* No dept selected */
+  .no-dept-msg { text-align: center; padding: 28px; color: var(--text-muted); font-size: 13px; }
+  .no-dept-msg svg { width: 32px; height: 32px; opacity: 0.3; margin-bottom: 8px; display: block; margin-inline: auto; }
+</style>
+</head>
+<body>
+
+<!-- MODAL: Nuevo Departamento -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Nuevo Departamento
+    </h2>
+    <div class="modal-field">
+      <label>Nombre del Departamento</label>
+      <input type="text" id="m-name" placeholder="Ej: Damas, Caballeros, Niños…" oninput="onModalInput()">
+      <div class="modal-hint err" id="m-name-err"></div>
+    </div>
+    <div class="modal-field">
+      <label>Prefijo EAN (9 dígitos)</label>
+      <input type="text" id="m-prefix" maxlength="9" placeholder="Ej: 270400001" oninput="onModalInput()">
+      <div class="modal-hint">Debe ser único. Los últimos 3 dígitos serán el número de producto.</div>
+      <div class="modal-hint err" id="m-prefix-err"></div>
+    </div>
+    <div class="modal-preview" id="m-preview">
+      Vista previa del código: <strong>—</strong>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-confirm" id="btn-confirm-dept" onclick="saveDept()">Crear departamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-brand">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M2 4h2v16H2V4zm3 0h1v16H5V4zm2 0h2v16H7V4zm3 0h1v16h-1V4zm2 0h2v16h-2V4zm3 0h1v16h-1V4zm2 0h3v16h-3V4z"/></svg>
+    </div>
+    <div>
+      <div class="header-title">Generador de Códigos de Barras EAN-13</div>
+      <div class="header-sub">Sistema de Inventario Interno — Tienda JH</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="fb-status"><div class="fb-dot" id="fb-dot"></div><span id="fb-status-text">Conectando…</span></div>
+    <div class="header-badge">ESTÁNDAR EAN-13 · GS1 PANAMÁ</div>
+  </div>
+</header>
+
+<main class="app-body">
+
+  <!-- Warning alert -->
+  <div class="alert alert-warning" id="alert-warn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <div class="alert-body" id="warn-text"></div>
+  </div>
+
+  <!-- Info alert (save confirmation) -->
+  <div class="alert alert-info" id="alert-info">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div class="alert-body" id="info-text"></div>
+  </div>
+
+  <!-- ── PANEL 1: Selección de Departamento ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-header-dot"></div>
+      <span>Departamento</span>
+    </div>
+    <div class="panel-body">
+      <div class="dept-row">
+        <div class="dept-select-wrap">
+          <select id="dept-select" onchange="onDeptChange()">
+            <option value="">— Seleccione un departamento —</option>
+          </select>
+        </div>
+        <div class="dept-badge" id="dept-badge" style="display:none;">
+          Prefijo: <span id="dept-prefix-show">—</span>
+        </div>
+        <button class="btn-new-dept" onclick="openModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Nuevo departamento
+        </button>
+      </div>
+      <div class="dept-info-row" id="dept-info" style="display:none;">
+        <div class="dept-stat">Rango usado: <strong id="di-used">—</strong></div>
+        <div class="dept-stat">Próximo disponible: <strong id="di-next">—</strong></div>
+        <div class="dept-stat">Disponibles: <strong id="di-avail">—</strong></div>
+        <div class="dept-stat">Total usados: <strong id="di-total">—</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PANEL 2: Configuración del lote ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-header-dot"></div>
+      <span>Configuración del lote</span>
+    </div>
+    <div class="panel-body">
+      <div id="no-dept-msg" class="no-dept-msg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+        Seleccione un departamento para configurar el lote
+      </div>
+      <div id="lote-form" style="display:none;">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Prefijo del departamento (9 dígitos)</label>
+            <input type="text" id="inp-prefix" maxlength="9" readonly>
+          </div>
+          <div class="form-group">
+            <label>Producto desde</label>
+            <input type="number" id="inp-from" min="1" max="999" oninput="onInput()">
+          </div>
+          <div class="form-group">
+            <label>Hasta</label>
+            <input type="number" id="inp-to" min="1" max="999" oninput="onInput()">
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <button class="btn-generate" id="btn-generate" onclick="generate()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+              Generar lote
+            </button>
+          </div>
+        </div>
+        <div class="error-hint" id="err-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="stats">
+    <div class="stat-card blue"><div class="stat-label">Códigos nuevos</div><div class="stat-value" id="s-total">0</div></div>
+    <div class="stat-card gray"><div class="stat-label">Ya usados (omitidos)</div><div class="stat-value" id="s-used">0</div></div>
+    <div class="stat-card green"><div class="stat-label">Disponibles restantes</div><div class="stat-value" id="s-avail">0</div></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions-bar" id="actions">
+    <button class="btn-action btn-save" id="btn-save" onclick="saveToFirebase()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Guardar en Firebase
+    </button>
+    <button class="btn-action" onclick="copyAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copiar todos
+    </button>
+    <button class="btn-action" onclick="copyCSV()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+      Exportar CSV
+    </button>
+    <button class="btn-action" onclick="toggleBarcodes()" id="btn-bc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9v6m3-8v10m3-10v10m3-10v10m3-8v6m3-4v2"/></svg>
+      Mostrar barras
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-panel hidden" id="table-panel">
+    <div class="table-scroll">
+      <div class="empty-state" id="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9v6m3-8v10m3-10v10m3-10v10m3-8v6m3-4v2"/></svg>
+        <p>Configure los parámetros y presione "Generar lote"</p>
+      </div>
+      <table id="main-table" style="display:none;">
+        <thead>
+          <tr>
+            <th style="width:52px;">#</th>
+            <th style="width:180px;">Código EAN-13</th>
+            <th style="width:90px; text-align:center;">Dígito ver.</th>
+            <th id="th-bc" style="display:none; width:200px;">Código de barras</th>
+            <th>Nombre / descripción del producto</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<footer class="app-footer">
+  GENERADOR EAN-13 · TIENDA JH · USO INTERNO · TODOS LOS CÓDIGOS CALCULADOS SEGÚN ESTÁNDAR GS1
+</footer>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+<script>
+// ─── Firebase ───────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyAQ9CTBEqelbYFWWFlAI3WDxQmYNu0TJ_Q",
+  authDomain: "inventario-jh.firebaseapp.com",
+  projectId: "inventario-jh",
+  storageBucket: "inventario-jh.firebasestorage.app",
+  messagingSenderId: "273286809281",
+  appId: "1:273286809281:web:7e90a9f0c9d8e0460f3640"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ─── Estado ─────────────────────────────────────────────────
+let departments = {};       // { id: { name, prefix, usedRanges:[{from,to}] } }
+let currentDeptId = null;
+let generatedCodes = [];
+let barcodesVisible = false;
+
+// ─── Firebase status ────────────────────────────────────────
+function setFbStatus(state) {
+  const dot = document.getElementById('fb-dot');
+  const txt = document.getElementById('fb-status-text');
+  if (state === 'ok') { dot.className = 'fb-dot connected'; txt.textContent = 'Firebase conectado'; }
+  else if (state === 'err') { dot.className = 'fb-dot error'; txt.textContent = 'Error de conexión'; }
+  else { dot.className = 'fb-dot'; txt.textContent = 'Conectando…'; }
+}
+
+// ─── Cargar departamentos desde Firestore ───────────────────
+async function loadDepartments() {
+  try {
+    const snap = await db.collection('departamentos').get();
+    departments = {};
+    snap.forEach(doc => { departments[doc.id] = doc.data(); });
+    setFbStatus('ok');
+    renderDeptSelect();
+  } catch (e) {
+    setFbStatus('err');
+    console.error('Error cargando departamentos:', e);
+  }
+}
+
+function renderDeptSelect() {
+  const sel = document.getElementById('dept-select');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Seleccione un departamento —</option>';
+  Object.entries(departments)
+    .sort((a,b) => a[1].name.localeCompare(b[1].name))
+    .forEach(([id, d]) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = d.name;
+      sel.appendChild(opt);
+    });
+  if (cur && departments[cur]) sel.value = cur;
+}
+
+// ─── Selección de departamento ──────────────────────────────
+function onDeptChange() {
+  const id = document.getElementById('dept-select').value;
+  currentDeptId = id || null;
+
+  // Reset table
+  generatedCodes = [];
+  document.getElementById('stats').style.display = 'none';
+  document.getElementById('actions').style.display = 'none';
+  document.getElementById('table-panel').classList.add('hidden');
+  document.getElementById('main-table').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'block';
+  document.getElementById('alert-warn').style.display = 'none';
+  document.getElementById('alert-info').style.display = 'none';
+  document.getElementById('err-msg').textContent = '';
+
+  if (!id || !departments[id]) {
+    document.getElementById('dept-badge').style.display = 'none';
+    document.getElementById('dept-info').style.display = 'none';
+    document.getElementById('no-dept-msg').style.display = 'block';
+    document.getElementById('lote-form').style.display = 'none';
+    return;
+  }
+
+  const d = departments[id];
+  document.getElementById('inp-prefix').value = d.prefix;
+  document.getElementById('dept-prefix-show').textContent = d.prefix;
+  document.getElementById('dept-badge').style.display = 'flex';
+  document.getElementById('no-dept-msg').style.display = 'none';
+  document.getElementById('lote-form').style.display = 'block';
+
+  // Calcular estadísticas de uso
+  updateDeptInfo(d);
+}
+
+function updateDeptInfo(d) {
+  const ranges = d.usedRanges || [];
+  let totalUsed = 0;
+  ranges.forEach(r => totalUsed += (r.to - r.from + 1));
+  const next = findNextAvailable(ranges);
+  const avail = 999 - totalUsed;
+
+  document.getElementById('dept-info').style.display = 'flex';
+  if (ranges.length > 0) {
+    const allNums = [];
+    ranges.forEach(r => { for(let i=r.from;i<=r.to;i++) allNums.push(i); });
+    document.getElementById('di-used').textContent =
+      ranges.map(r => r.from === r.to ? `${r.from}` : `${r.from}–${r.to}`).join(', ') || '—';
+  } else {
+    document.getElementById('di-used').textContent = 'Ninguno';
+  }
+  document.getElementById('di-next').textContent = next <= 999 ? next : 'Agotado';
+  document.getElementById('di-avail').textContent = avail;
+  document.getElementById('di-total').textContent = totalUsed;
+
+  // Sugerir próximo rango disponible
+  if (next <= 999) {
+    document.getElementById('inp-from').value = next;
+    document.getElementById('inp-to').value = Math.min(next + 62, 999);
+  } else {
+    document.getElementById('inp-from').value = '';
+    document.getElementById('inp-to').value = '';
+  }
+}
+
+function findNextAvailable(ranges) {
+  // Busca el primer número entre 1-999 no cubierto por ningún rango
+  const used = new Set();
+  ranges.forEach(r => { for(let i=r.from;i<=r.to;i++) used.add(i); });
+  for (let i=1;i<=999;i++) if (!used.has(i)) return i;
+  return 1000; // agotado
+}
+
+function isUsedInDept(n) {
+  if (!currentDeptId || !departments[currentDeptId]) return false;
+  const ranges = departments[currentDeptId].usedRanges || [];
+  return ranges.some(r => n >= r.from && n <= r.to);
+}
+
+// ─── EAN-13 ─────────────────────────────────────────────────
+function calcCheck(d12) {
+  let s = 0;
+  for (let i = 0; i < 12; i++) s += parseInt(d12[i]) * (i % 2 === 0 ? 1 : 3);
+  return (10 - (s % 10)) % 10;
+}
+
+// ─── Validación ─────────────────────────────────────────────
+function onInput() {
+  document.getElementById('err-msg').textContent = '';
+  document.getElementById('alert-warn').style.display = 'none';
+}
+
+function validate() {
+  const prefix = document.getElementById('inp-prefix').value.replace(/\D/g,'');
+  const from = parseInt(document.getElementById('inp-from').value);
+  const to = parseInt(document.getElementById('inp-to').value);
+  const err = document.getElementById('err-msg');
+  if (prefix.length !== 9) { err.textContent = 'El prefijo debe tener exactamente 9 dígitos.'; return false; }
+  if (isNaN(from) || isNaN(to) || from < 1 || to > 999) { err.textContent = 'El rango de productos debe estar entre 1 y 999.'; return false; }
+  if (from > to) { err.textContent = '"Desde" no puede ser mayor que "Hasta".'; return false; }
+  err.textContent = '';
+  return true;
+}
+
+// ─── Generar ─────────────────────────────────────────────────
+function generate() {
+  if (!currentDeptId) { document.getElementById('err-msg').textContent = 'Seleccione un departamento primero.'; return; }
+  if (!validate()) return;
+
+  const prefix = document.getElementById('inp-prefix').value.replace(/\D/g,'').slice(0,9);
+  const from = parseInt(document.getElementById('inp-from').value);
+  const to = parseInt(document.getElementById('inp-to').value);
+
+  generatedCodes = [];
+  let overlap = [];
+  for (let i = from; i <= to; i++) {
+    const prod = String(i).padStart(3,'0');
+    const base12 = prefix + prod;
+    const check = calcCheck(base12);
+    const used = isUsedInDept(i);
+    generatedCodes.push({ n: i, prod, base12, check, full: base12 + check, used });
+    if (used) overlap.push(i);
+  }
+
+  if (overlap.length > 0) {
+    const w = document.getElementById('alert-warn');
+    document.getElementById('warn-text').innerHTML =
+      `<strong>Atención:</strong> ${overlap.length} código(s) en este rango ya están registrados en Firebase para este departamento (productos ${overlap[0]}–${overlap[overlap.length-1]}). Aparecen atenuados.`;
+    w.style.display = 'flex';
+  }
+
+  const nuevos = generatedCodes.filter(c => !c.used).length;
+  const usados = generatedCodes.filter(c => c.used).length;
+  const deptData = departments[currentDeptId];
+  const ranges = deptData.usedRanges || [];
+  const totalUsados = (() => { let t=0; ranges.forEach(r=>t+=(r.to-r.from+1)); return t; })();
+
+  document.getElementById('s-total').textContent = nuevos;
+  document.getElementById('s-used').textContent = usados;
+  document.getElementById('s-avail').textContent = 999 - totalUsados - nuevos;
+  document.getElementById('stats').style.display = 'grid';
+  document.getElementById('actions').style.display = 'flex';
+  document.getElementById('table-panel').classList.remove('hidden');
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('main-table').style.display = '';
+
+  barcodesVisible = false;
+  document.getElementById('th-bc').style.display = 'none';
+  document.getElementById('btn-bc').classList.remove('active');
+  document.getElementById('btn-bc').innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9v6m3-8v10m3-10v10m3-10v10m3-8v6m3-4v2"/></svg> Mostrar barras`;
+
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbl-body');
+  tbody.innerHTML = '';
+  generatedCodes.forEach(c => {
+    const tr = document.createElement('tr');
+    if (c.used) tr.classList.add('used');
+    tr.innerHTML = `
+      <td class="td-num">${c.n}${c.used ? '<span class="used-badge">usado</span>' : ''}</td>
+      <td class="td-code">${c.base12}<span class="chk">${c.check}</span></td>
+      <td class="td-check">${c.check}</td>
+      <td class="td-bc" id="bc-${c.n}" style="display:none;"></td>
+      <td class="td-desc"><input type="text" placeholder="${c.used ? '— ya asignado —' : 'Escriba el nombre del producto…'}" ${c.used ? 'disabled' : ''} /></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── Guardar en Firebase ─────────────────────────────────────
+async function saveToFirebase() {
+  if (!currentDeptId) return;
+  const nuevos = generatedCodes.filter(c => !c.used);
+  if (nuevos.length === 0) { showInfo('No hay códigos nuevos para guardar.'); return; }
+
+  const btn = document.getElementById('btn-save');
+  btn.innerHTML = `<span class="spinner"></span> Guardando…`;
+  btn.disabled = true;
+
+  try {
+    const from = parseInt(document.getElementById('inp-from').value);
+    const to = parseInt(document.getElementById('inp-to').value);
+
+    // Calcular rango sólo de los nuevos
+    const newNums = nuevos.map(c=>c.n);
+    const newFrom = Math.min(...newNums);
+    const newTo = Math.max(...newNums);
+
+    const deptRef = db.collection('departamentos').doc(currentDeptId);
+    const deptSnap = await deptRef.get();
+    const data = deptSnap.data();
+    const existingRanges = data.usedRanges || [];
+
+    // Agregar nuevo rango y compactar rangos adyacentes
+    const merged = mergeRanges([...existingRanges, { from: newFrom, to: newTo }]);
+    await deptRef.update({ usedRanges: merged });
+
+    // Actualizar estado local
+    departments[currentDeptId].usedRanges = merged;
+    updateDeptInfo(departments[currentDeptId]);
+
+    showInfo(`✓ ${nuevos.length} código(s) (rango ${newFrom}–${newTo}) guardados en Firebase para el departamento <strong>${departments[currentDeptId].name}</strong>.`);
+
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Guardado`;
+    setTimeout(() => {
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar en Firebase`;
+      btn.disabled = false;
+    }, 2500);
+  } catch(e) {
+    console.error(e);
+    showInfo('Error al guardar en Firebase: ' + e.message);
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Guardar en Firebase`;
+    btn.disabled = false;
+  }
+}
+
+function mergeRanges(ranges) {
+  if (!ranges.length) return [];
+  const sorted = [...ranges].sort((a,b)=>a.from-b.from);
+  const result = [sorted[0]];
+  for (let i=1;i<sorted.length;i++) {
+    const last = result[result.length-1];
+    if (sorted[i].from <= last.to + 1) last.to = Math.max(last.to, sorted[i].to);
+    else result.push({...sorted[i]});
+  }
+  return result;
+}
+
+// ─── Modal: Nuevo Departamento ───────────────────────────────
+function openModal() {
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-prefix').value = '';
+  document.getElementById('m-name-err').textContent = '';
+  document.getElementById('m-prefix-err').textContent = '';
+  document.getElementById('m-preview').innerHTML = 'Vista previa del código: <strong>—</strong>';
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('m-name').focus(), 200);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+function onModalInput() {
+  document.getElementById('m-name-err').textContent = '';
+  document.getElementById('m-prefix-err').textContent = '';
+  const prefix = document.getElementById('m-prefix').value.replace(/\D/g,'');
+  if (prefix.length === 9) {
+    const sample = prefix + '001';
+    const check = calcCheck(sample);
+    document.getElementById('m-preview').innerHTML = `Vista previa del código: <strong>${sample}${check}</strong> (producto 001)`;
+  } else {
+    document.getElementById('m-preview').innerHTML = 'Vista previa del código: <strong>—</strong>';
+  }
+}
+
+async function saveDept() {
+  const name = document.getElementById('m-name').value.trim();
+  const prefix = document.getElementById('m-prefix').value.replace(/\D/g,'');
+  let ok = true;
+
+  if (!name) { document.getElementById('m-name-err').textContent = 'El nombre no puede estar vacío.'; ok = false; }
+  if (prefix.length !== 9) { document.getElementById('m-prefix-err').textContent = 'El prefijo debe tener exactamente 9 dígitos.'; ok = false; }
+  if (!ok) return;
+
+  // Verificar prefijo único
+  const prefixTaken = Object.values(departments).some(d => d.prefix === prefix);
+  if (prefixTaken) { document.getElementById('m-prefix-err').textContent = 'Este prefijo ya está en uso por otro departamento.'; return; }
+
+  const btn = document.getElementById('btn-confirm-dept');
+  btn.textContent = 'Guardando…'; btn.disabled = true;
+
+  try {
+    const docRef = await db.collection('departamentos').add({ name, prefix, usedRanges: [] });
+    departments[docRef.id] = { name, prefix, usedRanges: [] };
+    renderDeptSelect();
+    closeModal();
+    // Seleccionar el nuevo departamento
+    document.getElementById('dept-select').value = docRef.id;
+    onDeptChange();
+    showInfo(`Departamento <strong>${name}</strong> creado con prefijo <code>${prefix}</code>.`);
+  } catch(e) {
+    document.getElementById('m-prefix-err').textContent = 'Error al guardar: ' + e.message;
+  } finally {
+    btn.textContent = 'Crear departamento'; btn.disabled = false;
+  }
+}
+
+// ─── Helpers UI ──────────────────────────────────────────────
+function showInfo(msg) {
+  const el = document.getElementById('alert-info');
+  document.getElementById('info-text').innerHTML = msg;
+  el.style.display = 'flex';
+  setTimeout(() => el.style.display = 'none', 6000);
+}
+
+function toggleBarcodes() {
+  barcodesVisible = !barcodesVisible;
+  const th = document.getElementById('th-bc');
+  const btn = document.getElementById('btn-bc');
+  th.style.display = barcodesVisible ? '' : 'none';
+  btn.classList.toggle('active', barcodesVisible);
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9v6m3-8v10m3-10v10m3-10v10m3-8v6m3-4v2"/></svg> ${barcodesVisible ? 'Ocultar barras' : 'Mostrar barras'}`;
+  generatedCodes.forEach(c => {
+    const cell = document.getElementById('bc-' + c.n);
+    cell.style.display = barcodesVisible ? '' : 'none';
+    if (barcodesVisible && !cell.dataset.rendered) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      cell.appendChild(svg);
+      try { JsBarcode(svg, c.full, { format:'EAN13', width:1.4, height:42, displayValue:false, margin:4, lineColor:'#0f1f3d', background:'transparent' }); } catch(e) {}
+      cell.dataset.rendered = '1';
+    }
+  });
+}
+
+function copyAll() {
+  const text = generatedCodes.filter(c => !c.used).map(c => c.full).join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelectorAll('.actions-bar .btn-action')[1];
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copiado`;
+    setTimeout(() => btn.innerHTML = orig, 1800);
+  });
+}
+
+function copyCSV() {
+  const deptName = currentDeptId ? departments[currentDeptId].name : '';
+  const rows = ['#,Departamento,Codigo EAN-13,Digito verificador'];
+  generatedCodes.filter(c => !c.used).forEach(c => rows.push(`${c.n},${deptName},${c.full},${c.check}`));
+  navigator.clipboard.writeText(rows.join('\n'));
+}
+
+// ─── Init ────────────────────────────────────────────────────
+loadDepartments();
+</script>
+</body>
+</html>

@@ -233,6 +233,83 @@
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* Settings button */
+  .btn-settings {
+    width: 34px; height: 34px; border-radius: var(--radius);
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-settings:hover { background: rgba(255,255,255,0.16); color: white; }
+  .btn-settings svg { width: 16px; height: 16px; }
+
+  /* Search bar */
+  .search-bar {
+    display: none; align-items: center; gap: 10px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 0 14px;
+    margin-bottom: 12px; transition: border-color 0.15s;
+  }
+  .search-bar.visible { display: flex; }
+  .search-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(30,111,255,0.1); }
+  .search-bar svg { width: 15px; height: 15px; color: var(--text-muted); flex-shrink: 0; }
+  .search-bar input {
+    flex: 1; height: 38px; border: none; outline: none;
+    font-family: var(--mono); font-size: 13px; color: var(--text-primary);
+    background: transparent;
+  }
+  .search-bar input::placeholder { color: var(--text-muted); }
+  .search-count { font-size: 11px; color: var(--text-muted); white-space: nowrap; font-family: var(--mono); }
+  .search-clear { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; display: flex; align-items: center; }
+  .search-clear:hover { color: var(--text-primary); }
+  .search-clear svg { width: 14px; height: 14px; }
+  tr.search-hidden { display: none; }
+  td mark { background: #fff176; color: var(--text-primary); border-radius: 2px; padding: 0 1px; }
+
+  /* Settings modal (dept management) */
+  .settings-modal-body { max-height: 380px; overflow-y: auto; margin-bottom: 20px; }
+  .dept-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 8px; background: var(--bg);
+  }
+  .dept-item-info { flex: 1; min-width: 0; }
+  .dept-item-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+  .dept-item-prefix { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .dept-item-actions { display: flex; gap: 6px; }
+  .btn-icon {
+    width: 30px; height: 30px; border-radius: var(--radius);
+    border: 1.5px solid var(--border); background: white; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary); transition: all 0.15s;
+  }
+  .btn-icon:hover.edit { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .btn-icon:hover.delete { border-color: var(--danger); color: var(--danger); background: #fdecea; }
+  .btn-icon svg { width: 13px; height: 13px; }
+
+  /* Inline rename input */
+  .dept-rename-input {
+    flex: 1; height: 32px; padding: 0 10px;
+    border: 1.5px solid var(--accent); border-radius: var(--radius);
+    font-family: var(--sans); font-size: 13px; outline: none;
+    box-shadow: 0 0 0 3px rgba(30,111,255,0.1);
+  }
+
+  /* Delete confirm state */
+  .dept-item.confirming { border-color: var(--danger); background: #fdecea; }
+  .confirm-msg { font-size: 12px; color: var(--danger); font-weight: 500; flex: 1; }
+  .btn-confirm-delete {
+    height: 28px; padding: 0 12px; background: var(--danger); border: none;
+    border-radius: var(--radius); color: white; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-cancel-delete {
+    height: 28px; padding: 0 12px; background: white;
+    border: 1.5px solid var(--border); border-radius: var(--radius);
+    color: var(--text-secondary); font-size: 12px; cursor: pointer;
+  }
+
   /* Firebase status dot */
   .fb-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
   .fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
@@ -245,6 +322,24 @@
 </style>
 </head>
 <body>
+
+<!-- MODAL: Administrar Departamentos -->
+<div class="modal-overlay" id="settings-modal-overlay">
+  <div class="modal" style="max-width:500px;">
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Administrar Departamentos
+    </h2>
+    <div class="settings-modal-body" id="settings-dept-list"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSettingsModal()">Cerrar</button>
+      <button class="btn-confirm" onclick="closeSettingsModal(); openModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;vertical-align:middle;margin-right:6px;"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo departamento
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: Nuevo Departamento -->
 <div class="modal-overlay" id="modal-overlay">
@@ -285,9 +380,12 @@
       <div class="header-sub">Sistema de Inventario Interno — Tienda JH</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:16px;">
+  <div style="display:flex;align-items:center;gap:12px;">
     <div class="fb-status"><div class="fb-dot" id="fb-dot"></div><span id="fb-status-text">Conectando…</span></div>
     <div class="header-badge">ESTÁNDAR EAN-13 · GS1 PANAMÁ</div>
+    <button class="btn-settings" onclick="openSettingsModal()" title="Administrar departamentos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    </button>
   </div>
 </header>
 
@@ -397,6 +495,20 @@
     <button class="btn-action" onclick="toggleBarcodes()" id="btn-bc">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9v6m3-8v10m3-10v10m3-10v10m3-8v6m3-4v2"/></svg>
       Mostrar barras
+    </button>
+    <button class="btn-action" onclick="toggleSearch()" id="btn-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Buscar
+    </button>
+  </div>
+
+  <!-- Search bar -->
+  <div class="search-bar" id="search-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="search-input" placeholder="Buscar por código, número o descripción…" oninput="onSearchInput()">
+    <span class="search-count" id="search-count"></span>
+    <button class="search-clear" id="search-clear" onclick="clearSearch()" style="display:none;" title="Limpiar búsqueda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
   </div>
 
@@ -649,14 +761,23 @@ function renderTable() {
   tbody.innerHTML = '';
   generatedCodes.forEach(c => {
     const tr = document.createElement('tr');
+    tr.dataset.n = c.n;
+    tr.dataset.code = c.full;
     if (c.used) tr.classList.add('used');
     tr.innerHTML = `
       <td class="td-num">${c.n}${c.used ? '<span class="used-badge">usado</span>' : ''}</td>
       <td class="td-code">${c.base12}<span class="chk">${c.check}</span></td>
       <td class="td-check">${c.check}</td>
       <td class="td-bc" id="bc-${c.n}" style="display:none;"></td>
-      <td class="td-desc"><input type="text" placeholder="${c.used ? '— ya asignado —' : 'Escriba el nombre del producto…'}" ${c.used ? 'disabled' : ''} /></td>
+      <td class="td-desc"><input type="text" placeholder="${c.used ? '— ya asignado —' : 'Escriba el nombre del producto…'}" ${c.used ? 'disabled' : ''} value="${c.description || ''}" /></td>
     `;
+    // Guardar descripción en memoria al escribir
+    const descInput = tr.querySelector('.td-desc input');
+    descInput.addEventListener('input', () => {
+      c.description = descInput.value;
+      tr.dataset.desc = descInput.value.toLowerCase();
+    });
+    tr.dataset.desc = (c.description || '').toLowerCase();
     tbody.appendChild(tr);
   });
 }
@@ -687,10 +808,21 @@ async function saveToFirebase() {
 
     // Agregar nuevo rango y compactar rangos adyacentes
     const merged = mergeRanges([...existingRanges, { from: newFrom, to: newTo }]);
-    await deptRef.update({ usedRanges: merged });
+
+    // Guardar descripciones: merge con las existentes
+    const existingDescs = data.descriptions || {};
+    const newDescs = { ...existingDescs };
+    nuevos.forEach(c => {
+      if (c.description && c.description.trim()) {
+        newDescs[c.full] = c.description.trim();
+      }
+    });
+
+    await deptRef.update({ usedRanges: merged, descriptions: newDescs });
 
     // Actualizar estado local
     departments[currentDeptId].usedRanges = merged;
+    departments[currentDeptId].descriptions = newDescs;
     updateDeptInfo(departments[currentDeptId]);
 
     showInfo(`✓ ${nuevos.length} código(s) (rango ${newFrom}–${newTo}) guardados en Firebase para el departamento <strong>${departments[currentDeptId].name}</strong>.`);
@@ -826,6 +958,154 @@ function copyCSV() {
   const rows = ['#,Departamento,Codigo EAN-13,Digito verificador'];
   generatedCodes.filter(c => !c.used).forEach(c => rows.push(`${c.n},${deptName},${c.full},${c.check}`));
   navigator.clipboard.writeText(rows.join('\n'));
+}
+
+// ─── Búsqueda / Filtro de tabla ──────────────────────────────
+let searchVisible = false;
+
+function toggleSearch() {
+  searchVisible = !searchVisible;
+  const bar = document.getElementById('search-bar');
+  const btn = document.getElementById('btn-search');
+  bar.classList.toggle('visible', searchVisible);
+  btn.classList.toggle('active', searchVisible);
+  if (searchVisible) {
+    document.getElementById('search-input').focus();
+  } else {
+    clearSearch();
+  }
+}
+
+function onSearchInput() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const rows = document.querySelectorAll('#tbl-body tr');
+  const clearBtn = document.getElementById('search-clear');
+  clearBtn.style.display = q ? '' : 'none';
+  let visible = 0;
+  rows.forEach(tr => {
+    const n = tr.dataset.n || '';
+    const code = (tr.dataset.code || '').toLowerCase();
+    const desc = tr.dataset.desc || '';
+    const match = !q || n.includes(q) || code.includes(q) || desc.includes(q);
+    tr.classList.toggle('search-hidden', !match);
+    if (match) visible++;
+  });
+  document.getElementById('search-count').textContent = q ? `${visible} resultado${visible !== 1 ? 's' : ''}` : '';
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  document.getElementById('search-count').textContent = '';
+  document.querySelectorAll('#tbl-body tr').forEach(tr => tr.classList.remove('search-hidden'));
+}
+
+// ─── Modal: Administrar Departamentos ───────────────────────
+function openSettingsModal() {
+  renderSettingsList();
+  document.getElementById('settings-modal-overlay').classList.add('open');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal-overlay').classList.remove('open');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('settings-modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('settings-modal-overlay')) closeSettingsModal();
+  });
+});
+
+function renderSettingsList() {
+  const container = document.getElementById('settings-dept-list');
+  const sorted = Object.entries(departments).sort((a,b) => a[1].name.localeCompare(b[1].name));
+  if (sorted.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:20px 0;">No hay departamentos creados.</p>';
+    return;
+  }
+  container.innerHTML = sorted.map(([id, d]) => `
+    <div class="dept-item" id="di-${id}">
+      <div class="dept-item-info">
+        <div class="dept-item-name">${escHtml(d.name)}</div>
+        <div class="dept-item-prefix">Prefijo: ${d.prefix}</div>
+      </div>
+      <div class="dept-item-actions">
+        <button class="btn-icon edit" onclick="startRename('${id}')" title="Renombrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn-icon delete" onclick="confirmDeleteDept('${id}')" title="Eliminar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function startRename(id) {
+  const item = document.getElementById('di-' + id);
+  const d = departments[id];
+  item.innerHTML = `
+    <input class="dept-rename-input" id="rename-input-${id}" type="text" value="${escHtml(d.name)}" maxlength="50">
+    <div class="dept-item-actions">
+      <button class="btn-icon edit" onclick="saveRename('${id}')" title="Guardar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
+      <button class="btn-icon" onclick="renderSettingsList()" title="Cancelar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `;
+  const inp = document.getElementById('rename-input-' + id);
+  inp.focus(); inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveRename(id); if (e.key === 'Escape') renderSettingsList(); });
+}
+
+async function saveRename(id) {
+  const newName = document.getElementById('rename-input-' + id).value.trim();
+  if (!newName) return;
+  try {
+    await db.collection('departamentos').doc(id).update({ name: newName });
+    departments[id].name = newName;
+    renderDeptSelect();
+    renderSettingsList();
+    showInfo(`Departamento renombrado a <strong>${newName}</strong>.`);
+  } catch(e) {
+    showInfo('Error al renombrar: ' + e.message);
+  }
+}
+
+function confirmDeleteDept(id) {
+  const item = document.getElementById('di-' + id);
+  const d = departments[id];
+  item.classList.add('confirming');
+  item.innerHTML = `
+    <span class="confirm-msg">¿Eliminar <strong>${escHtml(d.name)}</strong>? Esta acción no se puede deshacer.</span>
+    <div class="dept-item-actions">
+      <button class="btn-confirm-delete" onclick="deleteDept('${id}')">Eliminar</button>
+      <button class="btn-cancel-delete" onclick="renderSettingsList()">Cancelar</button>
+    </div>
+  `;
+}
+
+async function deleteDept(id) {
+  try {
+    await db.collection('departamentos').doc(id).delete();
+    delete departments[id];
+    if (currentDeptId === id) {
+      currentDeptId = null;
+      document.getElementById('dept-select').value = '';
+      onDeptChange();
+    }
+    renderDeptSelect();
+    renderSettingsList();
+    showInfo('Departamento eliminado.');
+  } catch(e) {
+    showInfo('Error al eliminar: ' + e.message);
+  }
 }
 
 // ─── Init ────────────────────────────────────────────────────
